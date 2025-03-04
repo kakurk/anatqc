@@ -36,8 +36,9 @@ class FsLicenseError(Exception):
     pass
 
 class Task(tasks.BaseTask):
-    def __init__(self, infile, outdir, tempdir=None, pipenv=None):
+    def __init__(self, infile, outdir, tempdir=None, pipenv=None, openmp=None):
         self._infile = infile
+        self._openmp = openmp
         super().__init__(outdir, tempdir, pipenv)
 
     def build(self):
@@ -74,6 +75,10 @@ class Task(tasks.BaseTask):
         if self._pipenv:
             os.chdir(self._pipenv)
             cmd[:0] = ['pipenv', 'run']
+        if self._openmp:
+            cmd.extend([
+                '--openmp', self._openmp
+            ])
         logdir = self.logdir()
         # copy json sidecar into output logs directory
         sidecar = BIDS.sidecar_for_image(self._infile)
@@ -86,6 +91,7 @@ class Task(tasks.BaseTask):
             name='anatqc-morph',
             time='1440',
             memory='3G',
+            cpus=self._openmp,
             command=cmd,
             output=log,
             error=log

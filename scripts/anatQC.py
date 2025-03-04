@@ -105,6 +105,8 @@ def main():
         help='XNAT username')
     parser_tandem.add_argument('--xnat-pass',
         help='XNAT password')
+    parser_tandem.add_argument('--openmp',
+        help='Number of CPUs available for parallel procesing')
     parser_tandem.add_argument('--artifacts-dir',
         help='Location for generated assessors and resources')
     parser_tandem.add_argument('--xnat-upload', action='store_true',
