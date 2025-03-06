@@ -11,9 +11,8 @@ sphinx-rtd-theme = "*"
 yaxil = ">=0.9.3"
 selfie = ">=0.3.0"
 executors = "*"
-morphometry = {git = "https://github.com/kakurk/morphometry.git", editable=true}
+morphometry = "*"
 vnav = ">=0.3.1"
-anatqc = {path = ".",editable = true}
 
 [requires]
 python_version = "3.6.8"
