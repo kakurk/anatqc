@@ -114,7 +114,7 @@ RUN tcsh @update.afni.binaries -package linux_centos_7_64 -do_extras -bindir "${
 
 # install ants
 ARG ANTS_PREFIX="/sw/apps/ants"
-ARG ANTS_URI="https://dl.dropbox.com/s/2f4sui1z6lcgyek/ANTs-Linux-centos5_x86_64-v2.2.0-0740f91.tar.gz"
+ARG ANTS_URI="https://github.com/ANTsX/ANTs/archive/refs/tags/v2.2.0.tar.gz"
 RUN dnf install -y libGLw libGLU gsl
 RUN ln -s /usr/lib64/libgsl.so.23 /usr/lib64/libgsl.so.0
 RUN mkdir -p "${ANTS_PREFIX}"
@@ -133,12 +133,12 @@ RUN rm "/tmp/dcm2niix_lnx.zip"
 
 # install anatqc
 ARG AQC_PREFIX="/sw/apps/anatqc"
-ARG AQC_VERSION="0.5.7"
+#ARG AQC_VERSION="0.5.7"
 RUN dnf install -y compat-openssl10
 RUN mkdir -p "${AQC_PREFIX}"
 ENV PIPENV_VENV_IN_PROJECT=1
 WORKDIR "${AQC_PREFIX}"
-RUN pipenv install anatqc=="${AQC_VERSION}"
+RUN pipenv install git+https://github.com/kakurk/anatqc.git#egg=anatqc
 
 # freesurfer environment
 ENV FREESURFER_HOME="${FS_PREFIX}"
