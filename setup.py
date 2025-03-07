@@ -7,7 +7,7 @@ requires = [
     'yaxil',
     'selfie',
     'executors',
-    'morphometry', 
+    'morphometry @ git+https://github.com/kakurk/morphometry.git@openmp#egg=morphometry', 
     'vnav'
 ]
 
