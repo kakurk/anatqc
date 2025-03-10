@@ -10,7 +10,7 @@ RUN dnf install -y python3 python3-devel
 RUN alternatives --set python /usr/bin/python3
 
 # install pipenv
-RUN pip3 install pipenv==2021.5.29
+RUN pip3 install pipenv==2024.4.1
 
 # create a home directory for templateflow and mriqc cache
 RUN mkdir -p /home/anatqc
@@ -18,7 +18,7 @@ ENV HOME=/home/anatqc
 
 # install freesurfer
 ARG FS_PREFIX=/sw/apps/freesurfer/
-ARG FS_URI="https://www.dropbox.com/s/bzpqywglrhommfw/freesurfer-Linux-centos6_x86_64-stable-pub-v6.0.1.tar.gz?dl=0"
+ARG FS_URI="https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.4.1/freesurfer-linux-centos7_x86_64-7.4.1.tar.gz"
 RUN mkdir -p ${FS_PREFIX}
 RUN curl -L -s "${FS_URI}" | tar -C "${FS_PREFIX}" -xzf - \
   --strip-components=1 \
@@ -50,9 +50,9 @@ RUN dnf install -y \
   xorg-x11-drv-vmware libXScrnSaver dbus GConf2
 
 # install mriqc into an isolated pipenv environment
-ARG MRIQC_VERSION="0.15.3"
+ARG MRIQC_VERSION="24.0.2"
 ARG MRIQC_PREFIX="/sw/apps/mriqc"
-ARG MRIQC_URI="git+https://github.com/poldracklab/mriqc.git@${MRIQC_VERSION}#egg=mriqc"
+ARG MRIQC_URI="git+https:/github.com/poldracklab/mriqc.git@${MRIQC_VERSION}#egg=mriqc"
 RUN dnf groupinstall -y "Development Tools"
 RUN dnf install -y xorg-x11-server-Xvfb 
 RUN mkdir -p "${MRIQC_PREFIX}"
@@ -114,12 +114,16 @@ RUN tcsh @update.afni.binaries -package linux_centos_7_64 -do_extras -bindir "${
 
 # install ants
 ARG ANTS_PREFIX="/sw/apps/ants"
-ARG ANTS_URI="https://github.com/ANTsX/ANTs/archive/refs/tags/v2.2.0.tar.gz"
+ARG ANTS_URI="https://github.com/ANTsX/ANTs/releases/download/v2.4.1/ants-2.4.1-centos7-X64-gcc.zip"
 RUN dnf install -y libGLw libGLU gsl
+RUN dnf install -y redhat-lsb-core
 RUN ln -s /usr/lib64/libgsl.so.23 /usr/lib64/libgsl.so.0
 RUN mkdir -p "${ANTS_PREFIX}"
-RUN curl -sSL "${ANTS_URI}" \
-  | tar -xzC "${ANTS_PREFIX}" --strip-components 1
+RUN curl -sSL "${ANTS_URI}" -o $ANTS_PREFIX/ANTS.zip && \
+unzip $ANTS_PREFIX/ANTS.zip -d $ANTS_PREFIX && \ 
+mv $ANTS_PREFIX/ants-2.4.1/* $ANTS_PREFIX && \
+rmdir $ANTS_PREFIX/ants-2.4.1 && \
+rm -f $ANTS_PREFIX/ANTS.zip
 
 # install dcm2niix
 ARG D2N_PREFIX="/sw/apps/dcm2niix"
@@ -174,7 +178,7 @@ ENV PATH="${FSLDIR}/bin:${PATH}"
 ENV PATH="${AFNI_PREFIX}:${PATH}"
 
 # ants environment
-ENV PATH="${ANTS_PREFIX}:${PATH}"
+ENV PATH="${ANTS_PREFIX}/bin:${PATH}"
 
 # dcm2niix environment
 ENV PATH="${D2N_PREFIX}:${PATH}"
