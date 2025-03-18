@@ -1,0 +1,198 @@
+ARG BASE_IMAGE=ubuntu:22.04
+
+# Utilities for downloading packages
+FROM ${BASE_IMAGE} AS downloader
+
+# this env variable prevents the apt-get installs from asking for user input
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Bump the date to current to refresh curl/certificates/etc
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+                    binutils \
+                    bzip2 \
+                    ca-certificates \
+                    tcsh \
+                    curl \
+                    unzip && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+
+## Freesurfer Build Stage
+FROM downloader AS freesurfer
+
+# install freesurfer
+ARG FS_PREFIX=/sw/apps/freesurfer
+ARG FS_URI="https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.4.1/freesurfer-linux-ubuntu22_amd64-7.4.1.tar.gz"
+RUN mkdir -p ${FS_PREFIX} && \
+    curl -L -s "${FS_URI}" | tar -C "${FS_PREFIX}" -xzf - \
+      --strip-components=2 \
+      --exclude="freesurfer/diffusion" \
+      --exclude="freesurfer/docs" \
+      --exclude="freesurfer/fsfast" \
+      --exclude="freesurfer/lib/cuda" \
+      --exclude="freesurfer/matlab" \
+      --exclude="freesurfer/mni/share/man" \
+      --exclude="freesurfer/subjects/fsaverage_sym" \
+      --exclude="freesurfer/subjects/fsaverage3" \
+      --exclude="freesurfer/subjects/fsaverage4" \
+      --exclude="freesurfer/subjects/cvs_avg35" \
+      --exclude="freesurfer/subjects/cvs_avg35_inMNI152" \
+      --exclude="freesurfer/subjects/bert" \
+      --exclude="freesurfer/subjects/lh.EC_average" \
+      --exclude="freesurfer/subjects/rh.EC_average" \
+      --exclude="freesurfer/subjects/sample-*.mgz" \
+      --exclude="freesurfer/subjects/V1_average" \
+      --exclude="freesurfer/trctrain"
+
+# copy in license text file
+COPY license.txt $FS_PREFIX
+
+## AFNI Build Stage
+FROM downloader AS afni
+
+ARG AFNI_PREFIX="/sw/apps/afni"
+RUN mkdir -p $AFNI_PREFIX && \
+    cd $AFNI_PREFIX && \
+    curl -O https://afni.nimh.nih.gov/pub/dist/bin/misc/@update.afni.binaries && \
+    tcsh @update.afni.binaries -package linux_ubuntu_16_64 -do_extras && \
+    mv ~/abin/ /sw/apps/afni/
+
+## ANTS Build Stage
+FROM downloader AS ants
+
+# install ants
+ARG ANTS_PREFIX="/sw/apps/ants"
+
+RUN mkdir -p $ANTS_PREFIX
+
+RUN curl -L -s -o ANTS.zip https://github.com/ANTsX/ANTs/releases/download/v2.5.4/ants-2.5.4-ubuntu-22.04-X64-gcc.zip && \
+    unzip ANTS.zip -d $ANTS_PREFIX && \
+    mv $ANTS_PREFIX/ants-2.5.4/bin $ANTS_PREFIX && \
+    mv $ANTS_PREFIX/ants-2.5.4/lib $ANTS_PREFIX && \
+    rmdir $ANTS_PREFIX/ants-2.5.4
+
+## dcm2niix Build Stage
+
+FROM downloader AS dcm2niix
+
+# install dcm2niix
+ARG D2N_PREFIX="/sw/apps/dcm2niix"
+ARG D2N_URI="https://github.com/rordenlab/dcm2niix/releases/download/v1.0.20200331/dcm2niix_lnx.zip"
+RUN mkdir -p $D2N_PREFIX && \
+    curl -sL $D2N_URI -o $D2N_PREFIX/dcm2niix_lnx.zip && \
+    unzip $D2N_PREFIX/dcm2niix_lnx.zip -d $D2N_PREFIX && \
+    rm $D2N_PREFIX/dcm2niix_lnx.zip
+
+## Main Stage
+
+# starting from the base image
+FROM $BASE_IMAGE
+
+# install run time utilies
+RUN apt-get update && \
+    apt-get install -y git nano python3 python3-pip bc perl tar tcsh wget vim-common && \
+    apt-get clean
+
+# install pipenv
+RUN pip3 install pipenv
+
+# Install MRIQC
+ARG MRIQC_VERSION="24.0.2"
+ARG MRIQC_PREFIX="/sw/apps/mriqc"
+RUN mkdir -p "${MRIQC_PREFIX}"
+ENV PIPENV_VENV_IN_PROJECT=1
+WORKDIR "${MRIQC_PREFIX}"
+ENV LANG=C.UTF-8
+RUN pipenv install mriqc
+
+# Install dependent software
+ARG FS_PREFIX=/sw/apps/freesurfer
+ARG AFNI_PREFIX=/sw/apps/afni
+ARG ANTS_PREFIX=/sw/apps/ants
+ARG D2N_PREFIX=/sw/apps/dcm2niix
+
+COPY --from=freesurfer $FS_PREFIX $FS_PREFIX
+COPY --from=afni $AFNI_PREFIX $AFNI_PREFIX
+COPY --from=ants $ANTS_PREFIX $ANTS_PREFIX
+COPY --from=dcm2niix $D2N_PREFIX $D2N_PREFIX
+
+# Install ANATQC
+ARG ANATQC_PREFIX="/sw/apps/anatqc"
+RUN mkdir -p "${ANATQC_PREFIX}"
+ENV PIPENV_VENV_IN_PROJECT=1
+WORKDIR "${ANATQC_PREFIX}"
+RUN pipenv install -e git+https://github.com/kakurk/anatqc.git#egg=anatqc
+
+# set up freesurfer environment
+ENV FREESURFER_HOME="${FS_PREFIX}"
+ENV OS="Linux" \
+    FS_OVERRIDE=0 \
+    FIX_VERTEX_AREA="" \
+    FSF_OUTPUT_FORMAT="nii.gz" \
+    FREESURFER_HOME="${FREESURFER_HOME}" \
+    SUBJECTS_DIR="${FREESURFER_HOME}/subjects" \
+    FUNCTIONALS_DIR="${FREESURFER_HOME}/sessions" \
+    MNI_DIR="${FREESURFER_HOME}/mni" \
+    LOCAL_DIR="${FREESURFER_HOME}/local" \
+    MINC_BIN_DIR="${FREESURFER_HOME}/mni/bin" \
+    MINC_LIB_DIR="${FREESURFER_HOME}/mni/lib" \
+    MNI_DATAPATH="${FREESURFER_HOME}/mni/data"
+ENV PERL5LIB="${MINC_LIB_DIR}/perl5/5.8.5" \
+    MNI_PERL5LIB="${MINC_LIB_DIR}/perl5/5.8.5"
+ENV PATH="${FREESURFER_HOME}/bin:${FSFAST_HOME}/bin:${FREESURFER_HOME}/tktools:${MINC_BIN_DIR}:${PATH}"
+
+# set up fsl environment
+ENV FSLDIR="${FSL_PREFIX}"
+ENV FSLGECUDAQ="cuda.q" \
+    FSLMULTIFILEQUIT="TRUE" \
+    FSLOUTPUTTYPE="NIFTI_GZ" \
+    FSLWISH="${FSLDIR}/bin/fslwish" \
+    FSLTCLSH="${FSLDIR}/bin/fsltclsh" \
+    FSLMACHINELIST="" \
+    FSLREMOTECALL="" \
+    FSLLOCKDIR=""
+ENV PATH="${FSLDIR}/bin:${PATH}"
+
+# set up afni environment
+ENV PATH="${AFNI_PREFIX}/abin:${PATH}"
+
+# set up ants environment
+ENV PATH="${ANTS_PREFIX}/bin:${PATH}"
+
+# set up dcm2niix environment
+ENV PATH="${D2N_PREFIX}:${PATH}"
+
+# AFNI Dependenies
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y software-properties-common && \
+    add-apt-repository universe && \
+    apt-get update && \
+    apt-get install -y tcsh xfonts-base libssl-dev       \
+                        python-is-python3                 \
+                        python3-matplotlib python3-numpy  \
+                        python3-flask python3-flask-cors  \
+                        python3-pil                       \
+                        gsl-bin netpbm gnome-tweaks       \
+                        libjpeg62 xvfb xterm vim curl     \
+                        gedit evince eog                  \
+                        libglu1-mesa-dev libglw1-mesa     \
+                        libxm4 build-essential            \
+                        libcurl4-openssl-dev libxml2-dev  \
+                        libgfortran-11-dev libgomp1       \
+                        gnome-terminal nautilus           \
+                        firefox xfonts-100dpi             \
+                        r-base-dev cmake bc git           \
+                        libgdal-dev libopenblas-dev       \
+                        libnode-dev libudunits2-dev && \
+   ln -s /usr/lib64/libgsl.so.23 /usr/lib64/libgsl.so.0 && \
+   ln -s /usr/lib/x86_64-linux-gnu/libgsl.so.27 /usr/lib/x86_64-linux-gnu/libgsl.so.19
+
+RUN mkdir -p /home/anatqc
+ENV HOME=/home/anatqc
+
+# configure entrypoint
+WORKDIR /sw/apps/anatqc
+ENTRYPOINT ["pipenv", "run", "anatQC.py"]
