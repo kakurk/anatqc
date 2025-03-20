@@ -118,13 +118,6 @@ COPY --from=afni $AFNI_PREFIX $AFNI_PREFIX
 COPY --from=ants $ANTS_PREFIX $ANTS_PREFIX
 COPY --from=dcm2niix $D2N_PREFIX $D2N_PREFIX
 
-# Install ANATQC
-ARG ANATQC_PREFIX="/sw/apps/anatqc"
-RUN mkdir -p "${ANATQC_PREFIX}"
-ENV PIPENV_VENV_IN_PROJECT=1
-WORKDIR "${ANATQC_PREFIX}"
-RUN pipenv install -e git+https://github.com/kakurk/anatqc.git#egg=anatqc
-
 # set up freesurfer environment
 ENV FREESURFER_HOME="${FS_PREFIX}"
 ENV OS="Linux" \
@@ -192,6 +185,14 @@ RUN apt-get update && \
 
 RUN mkdir -p /home/anatqc
 ENV HOME=/home/anatqc
+
+# Install ANATQC
+RUN echo "03/20/2025"
+ARG ANATQC_PREFIX="/sw/apps/anatqc"
+RUN mkdir -p "${ANATQC_PREFIX}"
+ENV PIPENV_VENV_IN_PROJECT=1
+WORKDIR "${ANATQC_PREFIX}"
+RUN pipenv install -e git+https://github.com/kakurk/anatqc.git#egg=anatqc
 
 # configure entrypoint
 WORKDIR /sw/apps/anatqc
