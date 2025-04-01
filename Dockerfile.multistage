@@ -187,12 +187,15 @@ RUN mkdir -p /home/anatqc
 ENV HOME=/home/anatqc
 
 # Install ANATQC
-RUN echo "03/20/2025"
+RUN echo "04/01/2025"
 ARG ANATQC_PREFIX="/sw/apps/anatqc"
 RUN mkdir -p "${ANATQC_PREFIX}"
 ENV PIPENV_VENV_IN_PROJECT=1
 WORKDIR "${ANATQC_PREFIX}"
 RUN pipenv install -e git+https://github.com/kakurk/anatqc.git#egg=anatqc
+
+# freeview libraries
+RUN apt-get install -y libxcb-xinerama0 libxcb-cursor0 libxkbcommon-x11-0 libxcb-xkb1 libxcb-keysyms1 libxcb-icccm4 libxcb-xinput0
 
 # configure entrypoint
 WORKDIR /sw/apps/anatqc
