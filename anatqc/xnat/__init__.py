@@ -203,7 +203,7 @@ class Report:
             mriqc = json.load(fo)
         for metric in MRIQC_METRICS:
             value = mriqc[metric]
-            if isinstance(value, np.float):
+            if isinstance(value, float):
                 value = floatfmt(value)
             etree.SubElement(mriqc_elm, metric).text = str(value)
         # add <morph> element
