@@ -1,0 +1,58 @@
+FROM ubuntu:22.04
+
+# this env variable prevents the apt-get installs from asking for user input
+ENV DEBIAN_FRONTEND=noninteractive
+ENV FREESURFER_HOME=/usr/local/freesurfer/8.0.0
+
+RUN apt update && \
+    apt install -y bc binutils libgomp1 perl psmisc sudo tar tcsh unzip uuid-dev vim-common libjpeg62-dev wget gdebi-core
+
+RUN wget https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/8.0.0/freesurfer_ubuntu22-8.0.0_amd64.deb && \
+    gdebi -n freesurfer_ubuntu22-8.0.0_amd64.deb && \
+    rm -rf $FREESURFER_HOME/diffusion && \
+    rm -rf $FREESURFER_HOME/docs && \
+    rm -rf $FREESURFER_HOME/fsfast && \
+    rm -rf $FREESURFER_HOME/lib/cuda && \
+    rm -rf $FREESURFER_HOME/matlab && \
+    rm -rf $FREESURFER_HOME/mni/share/man && \
+    rm -rf $FREESURFER_HOME/subjects/fsaverage_sym && \
+    rm -rf $FREESURFER_HOME/subjects/fsaverage3 && \
+    rm -rf $FREESURFER_HOME/subjects/fsaverage4 && \
+    rm -rf $FREESURFER_HOME/subjects/cvs_avg35 && \
+    rm -rf $FREESURFER_HOME/subjects/cvs_avg35_inMNI152 && \
+    rm -rf $FREESURFER_HOME/subjects/bert && \
+    rm -rf $FREESURFER_HOME/subjects/lh.EC_average && \
+    rm -rf $FREESURFER_HOME/subjects/rh.EC_average && \
+    rm -rf $FREESURFER_HOME/subjects/sample-*.mgz && \
+    rm -rf $FREESURFER_HOME/subjects/V1_average && \
+    rm -rf $FREESURFER_HOME/trctrain && \
+    rm freesurfer_ubuntu22-8.0.0_amd64.deb && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY license.txt $FREESURFER_HOME/.license
+
+# setup fs env
+# adapted from the freesurfer docker file
+ENV OS Linux
+ENV PATH $FREESURFER_HOME/bin:$FREESURFER_HOME/fsfast/bin:$FREESURFER_HOME/tktools:$FREESURFER_HOME/mni/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+ENV FREESURFER $FREESURFER_HOME
+ENV SUBJECTS_DIR $FREESURFER_HOME/subjects
+ENV LOCAL_DIR $FREESURFER_HOME/local
+ENV FSFAST_HOME $FREESURFER_HOME/fsfast
+ENV FMRI_ANALYSIS_DIR $FREESURFER_HOME/fsfast
+ENV FUNCTIONALS_DIR $FREESURFER_HOME/sessions
+ENV FS_ALLOW_DEEP 1
+
+# set default fs options
+ENV FS_OVERRIDE 0
+ENV FIX_VERTEX_AREA ""
+ENV FSF_OUTPUT_FORMAT nii.gz
+
+# mni env requirements
+ENV MINC_BIN_DIR $FREESURFER_HOME/mni/bin
+ENV MINC_LIB_DIR $FREESURFER_HOME/mni/lib
+ENV MNI_DIR $FREESURFER_HOME/mni
+ENV MNI_DATAPATH $FREESURFER_HOME/mni/data
+ENV MNI_PERL5LIB $FREESURFER_HOME/mni/share/perl5
+ENV PERL5LIB $FREESURFER_HOME/mni/share/perl5
