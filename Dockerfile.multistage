@@ -22,32 +22,35 @@ RUN apt-get update && \
 ## Freesurfer Build Stage
 FROM downloader AS freesurfer
 
-# install freesurfer
-ARG FS_PREFIX=/sw/apps/freesurfer
-ARG FS_URI="https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/7.4.1/freesurfer-linux-ubuntu22_amd64-7.4.1.tar.gz"
-RUN mkdir -p ${FS_PREFIX} && \
-    curl -L -s "${FS_URI}" | tar -C "${FS_PREFIX}" -xzf - \
-      --strip-components=2 \
-      --exclude="freesurfer/diffusion" \
-      --exclude="freesurfer/docs" \
-      --exclude="freesurfer/fsfast" \
-      --exclude="freesurfer/lib/cuda" \
-      --exclude="freesurfer/matlab" \
-      --exclude="freesurfer/mni/share/man" \
-      --exclude="freesurfer/subjects/fsaverage_sym" \
-      --exclude="freesurfer/subjects/fsaverage3" \
-      --exclude="freesurfer/subjects/fsaverage4" \
-      --exclude="freesurfer/subjects/cvs_avg35" \
-      --exclude="freesurfer/subjects/cvs_avg35_inMNI152" \
-      --exclude="freesurfer/subjects/bert" \
-      --exclude="freesurfer/subjects/lh.EC_average" \
-      --exclude="freesurfer/subjects/rh.EC_average" \
-      --exclude="freesurfer/subjects/sample-*.mgz" \
-      --exclude="freesurfer/subjects/V1_average" \
-      --exclude="freesurfer/trctrain"
+ENV DEBIAN_FRONTEND=noninteractive
+ENV FREESURFER_HOME=/usr/local/freesurfer/8.0.0
 
-# copy in license text file
-COPY license.txt $FS_PREFIX
+RUN apt update && \
+    apt install -y bc binutils libgomp1 perl psmisc sudo tar tcsh unzip uuid-dev vim-common libjpeg62-dev wget gdebi-core
+
+RUN wget https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/8.0.0/freesurfer_ubuntu22-8.0.0_amd64.deb && \
+    gdebi -n freesurfer_ubuntu22-8.0.0_amd64.deb && \
+    rm -rf $FREESURFER_HOME/diffusion && \
+    rm -rf $FREESURFER_HOME/docs && \
+    rm -rf $FREESURFER_HOME/fsfast && \
+    rm -rf $FREESURFER_HOME/lib/cuda && \
+    rm -rf $FREESURFER_HOME/matlab && \
+    rm -rf $FREESURFER_HOME/mni/share/man && \
+    rm -rf $FREESURFER_HOME/subjects/fsaverage_sym && \
+    rm -rf $FREESURFER_HOME/subjects/fsaverage3 && \
+    rm -rf $FREESURFER_HOME/subjects/fsaverage4 && \
+    rm -rf $FREESURFER_HOME/subjects/cvs_avg35 && \
+    rm -rf $FREESURFER_HOME/subjects/cvs_avg35_inMNI152 && \
+    rm -rf $FREESURFER_HOME/subjects/bert && \
+    rm -rf $FREESURFER_HOME/subjects/lh.EC_average && \
+    rm -rf $FREESURFER_HOME/subjects/rh.EC_average && \
+    rm -rf $FREESURFER_HOME/subjects/sample-*.mgz && \
+    rm -rf $FREESURFER_HOME/subjects/V1_average && \
+    rm -rf $FREESURFER_HOME/trctrain && \
+    rm freesurfer_ubuntu22-8.0.0_amd64.deb && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+COPY license.txt $FREESURFER_HOME/.license
 
 ## AFNI Build Stage
 FROM downloader AS afni
@@ -113,7 +116,7 @@ ARG AFNI_PREFIX=/sw/apps/afni
 ARG ANTS_PREFIX=/sw/apps/ants
 ARG D2N_PREFIX=/sw/apps/dcm2niix
 
-COPY --from=freesurfer $FS_PREFIX $FS_PREFIX
+COPY --from=freesurfer /usr/local/freesurfer/8.0.0 $FS_PREFIX
 COPY --from=afni $AFNI_PREFIX $AFNI_PREFIX
 COPY --from=ants $ANTS_PREFIX $ANTS_PREFIX
 COPY --from=dcm2niix $D2N_PREFIX $D2N_PREFIX
