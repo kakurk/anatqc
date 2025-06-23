@@ -8,7 +8,7 @@ sphinx = "*"
 sphinx-rtd-theme = "*"
 
 [packages]
-yaxil = ">=0.9.3"
+yaxil = "==0.11.0"
 selfie = ">=0.3.0"
 executors = "*"
 morphometry = {git = "https://github.com/kakurk/morphometry.git", editable=true}
