@@ -4,11 +4,11 @@ from setuptools import setup, find_packages
 here = os.path.abspath(os.path.dirname(__file__))
 
 requires = [
-    'yaxil',
-    'selfie',
-    'executors',
+    'yaxil==0.11.0',
+    'selfie==0.3.1',
+    'executors==0.5.4',
     'morphometry @ git+https://github.com/kakurk/morphometry.git@openmp#egg=morphometry', 
-    'vnav'
+    'vnav==0.4.0'
 ]
 
 test_requirements = [
