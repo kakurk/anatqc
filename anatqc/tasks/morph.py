@@ -46,7 +46,7 @@ class Task(tasks.BaseTask):
             'sourcedata',
             'convert',
             'recon',
-            'tal_qc',
+            #'tal_qc',
             'stats',
             'euler',
             'wm-anat-snr',
