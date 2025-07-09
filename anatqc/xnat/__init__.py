@@ -160,6 +160,10 @@ class Report:
                 'dest': os.path.join('mriqc-html', '{0}_mriqc.html'.format(aid))
             },
             {
+                'source': os.path.join(self.dirs['mriqc'], self.sub),
+                'dest': os.path.join('mriqc-html')
+            },
+            {
                 'source': os.path.join(self.dirs['morph'], 'archive.tar.gz'),
                 'dest': os.path.join('fs-data', '{0}_freesurfer.tar.gz'.format(aid))
             }
@@ -274,7 +278,10 @@ class Report:
             src = resource['source']
             dest = os.path.join(resources_dir, resource['dest'])
             os.makedirs(os.path.dirname(dest), exist_ok=True)
-            shutil.copyfile(src, dest)
+            if os.path.isdir(src):
+                shutil.copytree(src, dest, dirs_exist_ok=True)
+            else:
+                shutil.copyfile(src, dest)
 
     def datasource(self, task):
         basename = os.path.basename(self.dirs[task])
