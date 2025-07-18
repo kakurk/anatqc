@@ -279,7 +279,7 @@ class Report:
             dest = os.path.join(resources_dir, resource['dest'])
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             if os.path.isdir(src):
-                shutil.copytree(src, dest, dirs_exist_ok=True)
+                shutil.copytree(src, os.path.join(dest, os.path.basename(src)), dirs_exist_ok=True)
             else:
                 shutil.copyfile(src, dest)
 
