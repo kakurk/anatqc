@@ -19,6 +19,9 @@ import anatqc.tasks.mriqc as mriqc
 import anatqc.tasks.vnav as vnav
 import anatqc.tasks.morph as morph
 from anatqc.state import State
+import requests
+from yaxil import StoreRESTError, basicauth, CHECK_CERTIFICATE
+import xml.etree.ElementTree as etree
 
 logger = logging.getLogger(__name__)
 
@@ -136,10 +139,10 @@ def do(args):
     
     # create archive of mriqc results
     if 'mriqc' in args.sub_tasks:
-        archive = os.path.join(mriqc_outdir, 'archive.tar.gz')
-        if not os.path.exists(archive):
-            logger.info('creating anat-mriqc archive %s', archive)
-            anatqc.archive(mriqc_outdir, archive)
+        mriqc_archive = os.path.join(mriqc_outdir, 'mriqc_archive.tar.gz')
+        if not os.path.exists(mriqc_archive):
+            logger.info('creating anat-mriqc archive %s', mriqc_archive)
+            anatqc.archive(mriqc_outdir, mriqc_archive)
 
     # artifacts directory
     if not args.artifacts_dir:
@@ -159,3 +162,33 @@ def do(args):
         auth = yaxil.auth2(args.xnat_alias)
         yaxil.storerest(auth, args.artifacts_dir, 'anatqc-resource')
 
+        if 'mriqc' in args.sub_tasks:
+
+            logger.info('Uploading MRIQC artifacts to XNAT')
+
+            assessment = os.path.join(args.artifacts_dir, 'assessor', 'assessment.xml')
+            with open(assessment) as fo:
+                root = etree.parse(fo)
+            aid = root.find('.').attrib['ID']
+            sid = root.findall('.//{http://nrg.wustl.edu/xnat}imageSession_ID').pop().text
+            baseurl = auth.url.rstrip('/')
+
+            url = f'{baseurl}/data/experiments/{sid}/assessors/{aid}/resources/anatqc-resource/files/anatqc-resource/mriqc_archive.tar.gz?extract=true'
+            
+            logger.debug('PUT %s', url)
+            r = requests.put(
+            url,
+            auth=basicauth(auth),
+            cookies=auth.cookie,
+            files={
+                'file': open(mriqc_archive, 'rb')
+            },
+            allow_redirects=True,
+            verify=CHECK_CERTIFICATE
+            )
+            if r.status_code == requests.codes.ok:
+                logger.debug(f'file {mriqc_archive} was stored successfully as mriqc.tar.gz')
+            elif r.status_code == requests.codes.conflict:
+                logger.debug(f'resource mriqc.tar.gz likely already exists')
+            else:
+                raise StoreRESTError(f'could not store resource file {mriqc_archive} ({r.status_code})')
