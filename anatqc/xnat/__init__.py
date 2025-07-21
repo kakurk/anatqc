@@ -156,12 +156,8 @@ class Report:
                 'dest': os.path.join('aseg-laterality', '{0}_aseg_laterality.png'.format(aid))
             },
             {
-                'source': os.path.join(self.dirs['mriqc'], basename + '.html'),
-                'dest': os.path.join('mriqc-html', '{0}_mriqc.html'.format(aid))
-            },
-            {
-                'source': os.path.join(self.dirs['mriqc'], self.sub),
-                'dest': os.path.join('mriqc-html')
+                'source': os.path.join(self.dirs['mriqc'], 'archive.tar.gz'),
+                'dest': os.path.join('mriqc-html', '{0}_mriqc.tar.gz'.format(aid))
             },
             {
                 'source': os.path.join(self.dirs['morph'], 'archive.tar.gz'),

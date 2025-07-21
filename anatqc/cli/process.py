@@ -100,7 +100,7 @@ def do(args):
             outdir=mriqc_outdir,
             tempdir=tempfile.gettempdir(),
             pipenv='/sw/apps/mriqc',
-	    openmp='1'
+	        openmp='1'
         )
         os.environ['OPENBLAS_NUM_THREADS'] = '1'
         logger.info(json.dumps(task.command, indent=1))
@@ -134,6 +134,13 @@ def do(args):
             logger.info('creating anat-morph archive %s', archive)
             anatqc.archive(morph_outdir, archive)
     
+    # create archive of mriqc results
+    if 'mriqc' in args.sub_tasks:
+        archive = os.path.join(mriqc_outdir, 'archive.tar.gz')
+        if not os.path.exists(archive):
+            logger.info('creating anat-mriqc archive %s', archive)
+            anatqc.archive(mriqc_outdir, archive)
+
     # artifacts directory
     if not args.artifacts_dir:
         args.artifacts_dir = os.path.join(
