@@ -136,13 +136,6 @@ def do(args):
         if not os.path.exists(archive):
             logger.info('creating anat-morph archive %s', archive)
             anatqc.archive(morph_outdir, archive)
-    
-    # create archive of mriqc results
-    if 'mriqc' in args.sub_tasks:
-        mriqc_archive = os.path.join(mriqc_outdir, 'mriqc_archive.tar.gz')
-        if not os.path.exists(mriqc_archive):
-            logger.info('creating anat-mriqc archive %s', mriqc_archive)
-            anatqc.archive(mriqc_outdir, mriqc_archive)
 
     # artifacts directory
     if not args.artifacts_dir:
@@ -156,12 +149,40 @@ def do(args):
     logger.info('building xnat artifacts to %s', args.artifacts_dir)
     R.build_assessment(args.artifacts_dir)
 
+    # create archive of mriqc results
+    if 'mriqc' in args.sub_tasks:
+        # rename the html prior to archiving
+
+        assessment = os.path.join(args.artifacts_dir, 'assessor', 'assessment.xml')
+        with open(assessment) as fo:
+            root = etree.parse(fo)
+        aid = root.find('.').attrib['ID']
+
+        # rename the html report
+        src = os.path.join(mriqc_outdir, f'{args.sub}_{args.ses}_run-{args.run}_T1w.html')
+        dst = os.path.join(mriqc_outdir, f'{aid}_mriqc.html')
+        os.rename(src, dst)
+
+        # rename the output directory directory
+        src = mriqc_outdir
+        dst = os.path.join(os.path.dirname(src), 'mriqc-html')
+        os.rename(src, dst)
+        mriqc_outdir = dst
+
+        # create an archive of the mriqc output
+        mriqc_archive = os.path.join(mriqc_outdir, 'mriqc_archive.tar.gz')
+        if not os.path.exists(mriqc_archive):
+            logger.info('creating anat-mriqc archive %s', mriqc_archive)
+            anatqc.archive(mriqc_outdir, mriqc_archive)
+
     # upload data to xnat over rest api
     if args.xnat_upload:
         logger.info('Uploading artifacts to XNAT')
         auth = yaxil.auth2(args.xnat_alias)
         yaxil.storerest(auth, args.artifacts_dir, 'anatqc-resource')
 
+        # we are going to upload the mriqc archive seperate from the rest of the resources
+        # the server should unpack the archive and it should have the html file in the appropriate folder
         if 'mriqc' in args.sub_tasks:
 
             logger.info('Uploading MRIQC artifacts to XNAT')
@@ -173,7 +194,7 @@ def do(args):
             sid = root.findall('.//{http://nrg.wustl.edu/xnat}imageSession_ID').pop().text
             baseurl = auth.url.rstrip('/')
 
-            url = f'{baseurl}/data/experiments/{sid}/assessors/{aid}/resources/anatqc-resource/files/anatqc-resource/mriqc_archive.tar.gz?extract=true'
+            url = f'{baseurl}/data/experiments/{sid}/assessors/{aid}/resources/anatqc-resource/files/mriqc_archive.tar.gz?extract=true'
             
             logger.debug('PUT %s', url)
             r = requests.put(
