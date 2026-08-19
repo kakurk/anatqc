@@ -36,8 +36,9 @@ class FsLicenseError(Exception):
     pass
 
 class Task(tasks.BaseTask):
-    def __init__(self, infile, outdir, tempdir=None, pipenv=None):
+    def __init__(self, infile, outdir, tempdir=None, pipenv=None, openmp=None):
         self._infile = infile
+        self._openmp = openmp
         super().__init__(outdir, tempdir, pipenv)
 
     def build(self):
@@ -71,6 +72,10 @@ class Task(tasks.BaseTask):
             cmd.extend([
                 '--scratch-dir', self._tempdir
             ])
+        if self._openmp:
+            cmd.extend([
+                '--openmp', str(self._openmp)
+            ])
         if self._pipenv:
             os.chdir(self._pipenv)
             cmd[:0] = ['pipenv', 'run']
@@ -82,7 +87,7 @@ class Task(tasks.BaseTask):
         shutil.copy2(sidecar, destination)
         # return job object
         log = os.path.join(logdir, 'anatqc-morph.log')
-        self.job = Job(
+        job_kwargs = dict(
             name='anatqc-morph',
             time='1440',
             memory='3G',
@@ -90,4 +95,7 @@ class Task(tasks.BaseTask):
             output=log,
             error=log
         )
+        if self._openmp:
+            job_kwargs['cpus'] = self._openmp
+        self.job = Job(**job_kwargs)
 

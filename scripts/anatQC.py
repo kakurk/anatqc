@@ -72,6 +72,8 @@ def main():
         help='Location for generated assessors and resources')
     parser_process.add_argument('--xnat-upload', action='store_true',
         help='Upload results to XNAT over REST API')
+    parser_process.add_argument('--openmp', type=int, default=None,
+        help='Number of CPUs available for parallel processing')
     parser_process.set_defaults(func=cli.process.do)
     # tandem (run get and process)
     parser_tandem = subparsers.add_parser('tandem', help='tandem -h')
@@ -109,6 +111,8 @@ def main():
         help='Location for generated assessors and resources')
     parser_tandem.add_argument('--xnat-upload', action='store_true',
         help='Upload results to XNAT over REST API')
+    parser_tandem.add_argument('--openmp', type=int, default=None,
+        help='Number of CPUs available for parallel processing')
     parser_tandem.set_defaults(func=cli.tandem.do)
     args = parser.parse_args()
 

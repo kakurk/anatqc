@@ -68,7 +68,8 @@ def do(args):
             task = morph.Task(
                 infile,
                 morph_outdir,
-                tempdir=tempfile.gettempdir()
+                tempdir=tempfile.gettempdir(),
+                openmp=args.openmp
             )
             logger.info(json.dumps(task.command, indent=1))
             jarray.add(task.job)
@@ -100,7 +101,8 @@ def do(args):
             bids=args.bids_dir,
             outdir=mriqc_outdir,
             tempdir=tempfile.gettempdir(),
-            pipenv='/sw/apps/mriqc'
+            pipenv='/sw/apps/mriqc',
+            openmp=args.openmp
         )
         os.environ['OPENBLAS_NUM_THREADS'] = '1'
         logger.info(json.dumps(task.command, indent=1))
