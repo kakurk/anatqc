@@ -1,0 +1,242 @@
+Bootstrap: docker
+From: ubuntu:24.04
+
+%post
+    export DEBIAN_FRONTEND=noninteractive
+
+    # scratch dir for this build's own downloads and TMPDIR - deliberately
+    # NOT /tmp: this HPC's singularity.conf has `mount tmp = yes`, so /tmp
+    # and /var/tmp inside the container are bind-mounted straight from the
+    # host's real, tiny (2GB) /tmp partition, shared with every other user.
+    # pip/pipenv default their download/build scratch space to $TMPDIR (or
+    # /tmp if unset), which fills that partition almost immediately during
+    # the MRIQC/ANATQC installs - redirect it here instead.
+    mkdir -p /build_tmp
+    export TMPDIR=/build_tmp
+
+    # base utilities. python3-dev/build-essential/gfortran are here (rather
+    # than only in the later AFNI-deps block) because MRIQC's pip install
+    # runs before that block, and at least one of its dependencies (traits)
+    # has no prebuilt wheel for this environment and falls back to compiling
+    # its C extension against Python.h.
+    apt-get update && \
+        apt-get install -y --no-install-recommends \
+            binutils bzip2 ca-certificates tcsh curl unzip wget git nano \
+            python3 python3-dev python3-pip bc perl tar vim-common \
+            build-essential gfortran && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/*
+
+    # FreeSurfer 8.2.0
+    export FREESURFER_HOME=/usr/local/freesurfer/8.2.0
+    apt-get update && \
+        apt-get install -y bc binutils libgomp1 perl psmisc sudo tar tcsh unzip uuid-dev vim-common libjpeg62-dev wget software-properties-common && \
+        add-apt-repository universe -y && \
+        apt-get update
+    # use `apt install ./pkg.deb` rather than gdebi: apt does full transitive
+    # dependency resolution (needed for libinsighttoolkit5.3 et al.), gdebi -n
+    # silently skips unresolved deps instead of installing them.
+    wget https://surfer.nmr.mgh.harvard.edu/pub/dist/freesurfer/8.2.0/freesurfer_ubuntu24-8.2.0_amd64.deb && \
+        apt-get install -y ./freesurfer_ubuntu24-8.2.0_amd64.deb && \
+        rm -rf $FREESURFER_HOME/diffusion && \
+        rm -rf $FREESURFER_HOME/docs && \
+        rm -rf $FREESURFER_HOME/fsfast && \
+        rm -rf $FREESURFER_HOME/lib/cuda && \
+        rm -rf $FREESURFER_HOME/matlab && \
+        rm -rf $FREESURFER_HOME/mni/share/man && \
+        rm -rf $FREESURFER_HOME/subjects/fsaverage_sym && \
+        rm -rf $FREESURFER_HOME/subjects/fsaverage3 && \
+        rm -rf $FREESURFER_HOME/subjects/fsaverage4 && \
+        rm -rf $FREESURFER_HOME/subjects/cvs_avg35 && \
+        rm -rf $FREESURFER_HOME/subjects/cvs_avg35_inMNI152 && \
+        rm -rf $FREESURFER_HOME/subjects/bert && \
+        rm -rf $FREESURFER_HOME/subjects/lh.EC_average && \
+        rm -rf $FREESURFER_HOME/subjects/rh.EC_average && \
+        rm -rf $FREESURFER_HOME/subjects/sample-*.mgz && \
+        rm -rf $FREESURFER_HOME/subjects/V1_average && \
+        rm -rf $FREESURFER_HOME/trctrain && \
+        rm freesurfer_ubuntu24-8.2.0_amd64.deb && \
+        apt-get clean && rm -rf /var/lib/apt/lists/*
+    mkdir -p /sw/apps/freesurfer
+    cp -a $FREESURFER_HOME/. /sw/apps/freesurfer/
+    rm -rf /usr/local/freesurfer
+
+    # compatibility shim: morphometry's provenance() shells out to
+    # `cat /etc/system-release`, which only exists on RHEL/CentOS - fake it
+    # here so provenance logging doesn't crash on this Ubuntu base. Real fix
+    # belongs upstream in morphometry (fall back to /etc/os-release).
+    echo "Ubuntu $(. /etc/os-release && echo "$VERSION")" > /etc/system-release
+
+    # AFNI
+    mkdir -p /sw/apps/afni && \
+        cd /sw/apps/afni && \
+        curl -O https://afni.nimh.nih.gov/pub/dist/bin/misc/@update.afni.binaries && \
+        tcsh @update.afni.binaries -package linux_ubuntu_24_64 -do_extras && \
+        mv ~/abin/ /sw/apps/afni/
+    cd /
+
+    # ANTs
+    mkdir -p /sw/apps/ants && \
+        curl -L -s -o /build_tmp/ANTS.zip https://github.com/ANTsX/ANTs/releases/download/v2.6.5/ants-2.6.5-ubuntu-24.04-X64-gcc.zip && \
+        unzip /build_tmp/ANTS.zip -d /sw/apps/ants && \
+        mv /sw/apps/ants/ants-2.6.5/bin /sw/apps/ants/ && \
+        mv /sw/apps/ants/ants-2.6.5/lib /sw/apps/ants/ && \
+        rmdir /sw/apps/ants/ants-2.6.5 && \
+        rm /build_tmp/ANTS.zip
+
+    # dcm2niix
+    mkdir -p /sw/apps/dcm2niix && \
+        curl -sL https://github.com/rordenlab/dcm2niix/releases/download/v1.0.20260724/dcm2niix_lnx.zip -o /build_tmp/dcm2niix_lnx.zip && \
+        unzip /build_tmp/dcm2niix_lnx.zip -d /sw/apps/dcm2niix && \
+        rm /build_tmp/dcm2niix_lnx.zip
+
+    # FSL
+    apt-get update && \
+        apt-get install -y --no-install-recommends python3 && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/*
+    curl -fsSL -o /build_tmp/fslinstaller.py \
+        https://fsl.fmrib.ox.ac.uk/fsldownloads/fslconda/releases/fslinstaller.py && \
+        python3 /build_tmp/fslinstaller.py -d /sw/apps/fsl -V 6.0.7.18 --skip_registration && \
+        rm -f /build_tmp/fslinstaller.py
+
+    # AFNI dependencies
+    apt-get update && \
+        apt-get install -y software-properties-common && \
+        add-apt-repository universe && \
+        apt-get update && \
+        apt-get install -y tcsh xfonts-base libssl-dev       \
+                            python-is-python3                 \
+                            python3-matplotlib python3-numpy  \
+                            python3-flask python3-flask-cors  \
+                            python3-pil                       \
+                            gsl-bin netpbm gnome-tweaks       \
+                            libjpeg62 xvfb xterm vim curl     \
+                            gedit evince eog                  \
+                            libglu1-mesa-dev libglw1-mesa     \
+                            libxm4 build-essential            \
+                            libcurl4-openssl-dev libxml2-dev  \
+                            gfortran libgomp1                 \
+                            gnome-terminal nautilus           \
+                            firefox xfonts-100dpi             \
+                            r-base-dev cmake bc git           \
+                            libgdal-dev libopenblas-dev       \
+                            libnode-dev libudunits2-dev       \
+                            libinsighttoolkit5.3 && \
+        ln -s /usr/lib64/libgsl.so.23 /usr/lib64/libgsl.so.0 && \
+        ln -s /usr/lib/x86_64-linux-gnu/libgsl.so.27 /usr/lib/x86_64-linux-gnu/libgsl.so.19
+
+    # freeview libraries
+    apt-get install -y libxcb-xinerama0 libxcb-cursor0 libxkbcommon-x11-0 libxcb-xkb1 libxcb-keysyms1 libxcb-icccm4 libxcb-xinput0
+
+    mkdir -p /home/anatqc
+
+    # pipenv
+    pip3 install --break-system-packages pipenv==2026.7.1
+
+    # MRIQC
+    mkdir -p /sw/apps/mriqc
+    export PIPENV_VENV_IN_PROJECT=1
+    export LANG=C.UTF-8
+    cd /sw/apps/mriqc
+    pipenv install "mriqc==24.0.2"
+
+    # ANATQC + branch versions of executors/morphometry (TEST ONLY - revert to
+    # `pipenv install anatqc=="0.6.0"` once these branches merge and are
+    # released to PyPI)
+    mkdir -p /sw/apps/anatqc
+    cd /sw/apps/anatqc
+    pipenv install \
+        "git+https://github.com/kakurk/executors.git@feature/sge#egg=executors" \
+        "git+https://github.com/kakurk/morphometry.git@feature/8.2.0#egg=morphometry" \
+        "git+https://github.com/kakurk/anatqc.git@feature/openmp#egg=anatqc"
+
+    rm -rf /build_tmp
+
+%environment
+    # the .sif is mounted read-only at runtime; without this, pipenv tries
+    # to resolve/create a per-user virtualenv under $HOME/.local/share
+    # instead of using the project-local .venv baked in at build time, and
+    # fails with a read-only filesystem error
+    export PIPENV_VENV_IN_PROJECT=1
+    export OS=Linux
+    export FS_OVERRIDE=0
+    export FIX_VERTEX_AREA=""
+    export FSF_OUTPUT_FORMAT=nii.gz
+    export FREESURFER_HOME=/sw/apps/freesurfer
+    export FREESURFER=/sw/apps/freesurfer
+    export SUBJECTS_DIR=/sw/apps/freesurfer/subjects
+    export FUNCTIONALS_DIR=/sw/apps/freesurfer/sessions
+    export MNI_DIR=/sw/apps/freesurfer/mni
+    export LOCAL_DIR=/sw/apps/freesurfer/local
+    export MINC_BIN_DIR=/sw/apps/freesurfer/mni/bin
+    export MINC_LIB_DIR=/sw/apps/freesurfer/mni/lib
+    export MNI_DATAPATH=/sw/apps/freesurfer/mni/data
+    export FSLDIR=/sw/apps/fsl
+    export FSLOUTPUTTYPE=NIFTI_GZ
+    export HOME=/home/anatqc
+    # dcm2niix must precede fsl/bin: FSL bundles its own older dcm2niix copy
+    # in its own bin/, which would otherwise shadow the dedicated build
+    export PATH=/sw/apps/freesurfer/bin:/sw/apps/freesurfer/tktools:/sw/apps/freesurfer/mni/bin:/sw/apps/afni/abin:/sw/apps/ants/bin:/sw/apps/dcm2niix:/sw/apps/fsl/bin:$PATH
+
+%runscript
+    cd /sw/apps/anatqc
+    exec pipenv run anatQC.py "$@"
+
+%labels
+    Author kkurkela@bu.edu
+    Description AnatQC with FreeSurfer 8.2.0 and OpenMP multi-core support (executors feature/sge, morphometry feature/8.2.0, anatqc feature/openmp)
+
+%help
+    This is a test image built directly from unreleased feature branches:
+      - executors@feature/sge
+      - morphometry@feature/8.2.0
+      - anatqc@feature/openmp
+    Once these branches merge and are released to PyPI, the ANATQC install
+    step in %post should revert to `pipenv install anatqc=="0.6.0"` (or
+    whatever the current released version is).
+
+    Build (on a machine with root/sudo - this HPC account has no fakeroot):
+        sudo singularity build anatqc-openmp.sif Singularity.def
+
+    Run, using BU SCC's recommended wrapper (RECOMMENDED on SCC):
+        scc-singularity run --nolocal \
+            --bind $HOME:/home/anatqc \
+            anatqc-openmp.sif \
+            tandem --label <label> --project <project> \
+            --bids-dir <dir> --xnat-alias <alias> \
+            --artifacts-dir <dir> --openmp <N> --rate-limit 1
+
+        scc-singularity (/share/singularity/utils/scc-singularity) already
+        auto-binds /scratch, /restricted, /projectnb, /usr1, and other SCC
+        filesystems, and preserves TMPDIR/NSLOTS/USER through its default
+        clean-env mode. The /scratch bind in particular is required: at
+        least one FreeSurfer MCR-compiled tool (hit during the
+        corpus-callosum segmentation step of recon-all) writes scratch
+        files directly under /scratch regardless of $TMPDIR. The explicit
+        --bind $HOME:/home/anatqc above is still needed for XNAT auth
+        (~/.xnat_auth): this image's %environment sets HOME=/home/anatqc,
+        which shadows the real host home directory that scc-singularity
+        otherwise auto-binds at its own path.
+
+        --nolocal is REQUIRED: by default scc-singularity also binds the
+        host's own /usr/local over the container's /usr/local (for access
+        to site-installed software), which shadows this image's own
+        /usr/local/bin/pipenv installed at build time and breaks the
+        %runscript entirely ("exec: pipenv: not found"). --nolocal turns
+        that specific bind off while keeping all the others.
+
+    Run, using plain singularity (if scc-singularity is unavailable):
+        singularity run \
+            --bind /scratch:/scratch \
+            --bind $HOME:/home/anatqc \
+            anatqc-openmp.sif \
+            tandem --label <label> --project <project> \
+            --bids-dir <dir> --xnat-alias <alias> \
+            --artifacts-dir <dir> --openmp <N> --rate-limit 1
+
+    Verified end-to-end on BU SCC (FreeSurfer 8.2.0, 16 OpenMP threads,
+    260203_xnat_demo_data/burcs): recon-all finished without error in
+    ~3 hours wall-clock, MRIQC completed, and a full local XNAT assessment
+    package (assessor XML, snapshots, FreeSurfer archive, MRIQC HTML) was
+    built successfully.
