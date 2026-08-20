@@ -57,7 +57,7 @@ def do(args):
         morph_outdir = os.path.join(morph_outdir, 'anat', raw[1])
         destination = os.path.join(morph_outdir, '.license')
         morph.make_fs_license(args.fs_license, destination)
-        if args.mock_fs:
+        if getattr(args, 'mock_fs', False):
             dirname = os.path.dirname(morph.__file__)
             tar = os.path.join(dirname, 'fs-mock.tar.gz')
             logger.info('extracting mock fs data %s to %s', tar, morph_outdir)
