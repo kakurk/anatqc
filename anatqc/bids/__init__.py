@@ -32,8 +32,9 @@ class BIDS(object):
     
     @staticmethod
     def sidecar_for_image(image):
-        base = re.sub('\..*$', '', image)
-        return base + '.json'
+        dirname, basename = os.path.split(image)
+        basename = re.sub('\..*$', '', basename)
+        return os.path.join(dirname, basename + '.json')
 
     def derivatives_dir(self, name):
         parts = [
