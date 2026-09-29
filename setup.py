@@ -8,7 +8,8 @@ requires = [
     'selfie',
     'executors',
     'morphometry', 
-    'vnav'
+    'vnav',
+    'pydicom<3'  # pydicom 3 removed read_file(), still used by vnav/yaxil/morphometry
 ]
 
 test_requirements = [
