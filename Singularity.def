@@ -144,12 +144,16 @@ From: ubuntu:24.04
     # ANATQC + branch versions of executors/morphometry (TEST ONLY - revert to
     # `pipenv install anatqc=="0.6.0"` once these branches merge and are
     # released to PyPI)
+    # pydicom<3: pydicom 3.0 removed read_file(), which vnav's
+    # parse_vNav_Motion.py, yaxil and morphometry all still call - without
+    # this pin the vNav sub-task crashes with AttributeError
     mkdir -p /sw/apps/anatqc
     cd /sw/apps/anatqc
     pipenv install \
         "git+https://github.com/kakurk/executors.git@feature/sge#egg=executors" \
         "git+https://github.com/kakurk/morphometry.git@feature/8.2.0#egg=morphometry" \
-        "git+https://github.com/kakurk/anatqc.git@feature/openmp#egg=anatqc"
+        "git+https://github.com/kakurk/anatqc.git@feature/openmp#egg=anatqc" \
+        "pydicom<3"
 
     rm -rf /build_tmp
 
@@ -196,8 +200,8 @@ From: ubuntu:24.04
     step in %post should revert to `pipenv install anatqc=="0.6.0"` (or
     whatever the current released version is).
 
-    Build (on a machine with root/sudo - this HPC account has no fakeroot):
-        sudo singularity build anatqc-openmp.sif Singularity.def
+    Build (on SCC build node scc-i01, under /scratch):
+        singularity build --fakeroot anatqc-openmp.sif Singularity.def
 
     Run, using BU SCC's recommended wrapper (RECOMMENDED on SCC):
         scc-singularity run --nolocal \
@@ -223,7 +227,7 @@ From: ubuntu:24.04
         host's own /usr/local over the container's /usr/local (for access
         to site-installed software), which shadows this image's own
         /usr/local/bin/pipenv installed at build time and breaks the
-        %runscript entirely ("exec: pipenv: not found"). --nolocal turns
+        runscript entirely ("exec: pipenv: not found"). --nolocal turns
         that specific bind off while keeping all the others.
 
     Run, using plain singularity (if scc-singularity is unavailable):

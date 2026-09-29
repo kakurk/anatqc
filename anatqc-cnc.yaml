@@ -1,0 +1,22 @@
+anatqc:
+  tags:
+    t1w:
+      - .*(^|\s)#t1w(?P<run>_\d+)?(\s|$).*
+    vnav:
+      - .*(^|\s)#t1w_move(?P<run>_\d+)?(\s|$).*
+  params:
+    vnav:
+      syngo_MR_E11:
+        ABCD_T1w_MPR_vNav:
+          min: 144
+          max: 168
+        PBN_T1w_MPR_vNav:
+          min: 136
+          max: 160
+      # CNC Prisma (XA60, e.g. 260313_BHC13). Key must match the sidecar's
+      # SoftwareVersions exactly - dcm2niix writes it with spaces.
+      # min/max reuse the E11 ABCD values (not confirmed for XA60).
+      "syngo MR XA60":
+        ABCD_T1w_MPR_vNav:
+          min: 144
+          max: 168
