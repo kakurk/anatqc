@@ -15,4 +15,4 @@ morphometry = {git = "https://github.com/kakurk/morphometry.git", editable=true}
 vnav = ">=0.3.1"
 
 [requires]
-python_version = "3.6.8"
+python_version = "3"

@@ -4,7 +4,7 @@ FROM rockylinux:8
 RUN dnf install -y git vim
 
 # install some things
-RUN dnf install -y python3 python3-devel
+RUN dnf install -y python3 python3-devel redhat-lsb
 
 # set python to python3
 RUN alternatives --set python /usr/bin/python3
@@ -96,7 +96,7 @@ RUN mkdir -p "${HOME}/.cache/mriqc"
 
 # install fsl
 ARG FSL_PREFIX="/sw/apps/fsl/"
-ARG FSL_URI="https://www.dropbox.com/s/p8go1t8kcoe41pz/fsl-6.0.4-centos7_64.tar.gz?dl=0"
+ARG FSL_URI="https://www.dropbox.com/scl/fi/3q2292enpxh5guy0rywsu/fsl-6.0.4-centos7_64.tar.gz?rlkey=eahcgw5uw3zdqyv8nns9gpkpn&st=mar6k2fu&dl=0"
 RUN dnf install -y libquadmath
 RUN mkdir -p "${FSL_PREFIX}"
 RUN curl -L -s "${FSL_URI}" | tar -C "${FSL_PREFIX}" -xzf - \
